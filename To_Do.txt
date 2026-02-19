@@ -1,0 +1,7 @@
+Add a default set up for camera angles in blender
+add light sources
+add fog option
+group materials by type in blender
+extract actual color from polyhedra edges instead of current hard-coded gray
+
+
