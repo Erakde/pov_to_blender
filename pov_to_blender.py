@@ -71,16 +71,24 @@ class POVParser:
             point1 = self._parse_vector(points_radius.group(1))
             point2 = self._parse_vector(points_radius.group(2))
             radius = float(points_radius.group(3))
+            #cell_edges and bonds have color in line
+            #poly_edges have color in union-level material declaration
             
-            color = self._extract_material(cyl_block, object='cyl')
+            #idea: if material not in cyllinder block -> poly edge is true
+            # then feed the whole block to extract_material and the cyl_block to be located in there, then extract the color from poly edge
+            #extract_material needs to be written differently for bonds, cell edges and polygon edges
+
+            color = self._extract_material(cyl_block, object='bond_or_cell') 
+            if color is None:                         
+                color = self._extract_material(cyl_block, object='poly_edge')
             if color is None:
-                color = (1.0, 0.0, 0.0, 1.0)
+                color = (1.0, 0.0, 0.75, 1.0) #default to pink if no color found
+
             translate_match = re.search(r'translate\s*<([^>]+)>', cyl_block)
             if translate_match:
                 translate_vec = self._parse_vector(translate_match.group(1))
                 point1 = tuple(a + b for a, b in zip(point1, translate_vec))
                 point2 = tuple(a + b for a, b in zip(point2, translate_vec))
-            
             self.cylinders.append({
                 'point1': point1,
                 'point2': point2,
@@ -201,11 +209,18 @@ class POVParser:
         if color_match:
             if object == 'sphere':
                 return self.colors.get(color_match.group(1).replace('M', 'P')+'_1')
-            elif object == 'bond':
+            elif object == 'bond_or_cell':
                 return self.colors.get(color_match.group(1))
-            elif object == 'poly':
-                return (1.0, 1.0, 1.0, 1.0)
-        return (1.0, 1.0, 1.0, 1.0)
+        if not color_match: #if the material is not in material_str:
+            return (0.75, 0.75, 0.75, 1)
+        
+            
+
+        else:
+            print('outside loop')
+            return None
+                #From the time being, Poly edges will be gray
+                #finish in the future
 
 
     def _parse_color_from_rgb(self, rgb_str: str, transmit: str = None) -> Tuple[float, float, float, float]:
@@ -332,6 +347,6 @@ def import_pov_to_blender(pov_file: str):
 
 
 if __name__ == "__main__":
-    pov_path = "../BiI3.pov"
+    pov_path = "D:/Python_Projects/pov_to_blender/BiI3.pov"
     import_pov_to_blender(pov_path)
-    print('listoquito')
+    print('listoquiiito')
