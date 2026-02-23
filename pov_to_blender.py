@@ -143,11 +143,11 @@ class POVParser:
             # Detect inner union start (contains polygons)
             elif union_depth == 1 and stripped.startswith('union {'):
                 union_depth = 2
-                # Check if this inner union contains polygons (look ahead)
+                # Check if this inner union contains polygons/triangles (look ahead)
                 j = i + 1
                 has_polygon = False
                 while j < len(lines) and not lines[j].strip().startswith('union'):
-                    if 'polygon' in lines[j]:
+                    if 'polygon' in lines[j] or 'triangle' in lines[j]:
                         has_polygon = True
                         break
                     if 'material' in lines[j] and current_material in lines[j]:
@@ -181,16 +181,23 @@ class POVParser:
                     current_color = None
                     current_rotate = None
             
-            # Extract polygon data - FIXED REGEX
-            elif in_polygon_union and stripped.startswith('polygon'):
-                # Use corrected regex: polygon\s*\{\s*(\d+)
-                count_match = re.search(r'polygon\s*\{\s*(\d+)', stripped)
-                if count_match:
-                    vertices_count = int(count_match.group(1))
-                    # Extract all vertices
+            # Extract polygon or triangle data
+            elif in_polygon_union and (stripped.startswith('polygon') or stripped.startswith('triangle')):
+                # Handle polygon with vertex count
+                if stripped.startswith('polygon'):
+                    count_match = re.search(r'polygon\s*\{\s*(\d+)', stripped)
+                    if count_match:
+                        vertices_count = int(count_match.group(1))
+                        # Extract all vertices
+                        vertices = re.findall(r'<([^>]+)>', stripped)
+                        vertices = [self._parse_vector(v) for v in vertices[:vertices_count]]
+                        if len(vertices) >= vertices_count:
+                            polygon_vertices.append(vertices)
+                # Handle triangle (3 vertices directly in the line)
+                elif stripped.startswith('triangle'):
                     vertices = re.findall(r'<([^>]+)>', stripped)
-                    vertices = [self._parse_vector(v) for v in vertices[:vertices_count]]
-                    if len(vertices) >= vertices_count:
+                    if len(vertices) == 3:
+                        vertices = [self._parse_vector(v) for v in vertices]
                         polygon_vertices.append(vertices)
             
             i += 1
@@ -347,6 +354,6 @@ def import_pov_to_blender(pov_file: str):
 
 
 if __name__ == "__main__":
-    pov_path = "D:/Python_Projects/pov_to_blender/BiI3.pov"
+    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/Bi12345.pov"
     import_pov_to_blender(pov_path)
     print('listoquiiito')
