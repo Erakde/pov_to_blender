@@ -292,8 +292,11 @@ class BlenderCrystalBuilder:
     
     def build(self):
         self._create_spheres()
+        print('spheres')
         self._create_cylinders()
+        print('cylinders')
         self._create_polygons()
+        print('poly')
         self._set_camera()
     
     def _create_spheres(self):
@@ -354,6 +357,6 @@ def import_pov_to_blender(pov_file: str):
 
 
 if __name__ == "__main__":
-    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/Bi12345.pov"
+    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/BiI3.pov"
     import_pov_to_blender(pov_path)
     print('listoquiiito')
