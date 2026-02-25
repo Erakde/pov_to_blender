@@ -292,25 +292,37 @@ class BlenderCrystalBuilder:
     
     def build(self):
         self._create_spheres()
-        self._create_cylinders()
-        self._create_polygons()
+        #self._create_cylinders()
+        #self._create_polygons()
         #self._set_camera()
     
     def _create_spheres(self):
-        for sphere in self.data.spheres:
-            bpy.ops.mesh.primitive_uv_sphere_add(
-                radius=sphere['radius'],
-                location=sphere['center']
-            )
-            obj = bpy.context.active_object
-            mat = self._get_or_create_material(sphere['color'], "Sphere")
-            obj.data.materials.append(mat)
-    
-    def _create_cylinders(self):
-        # Optimized: Create base cylinder meshes for each unique color+radius combination,
-        # then instance them for each cylinder position. This is much more efficient.
-        # Problem: sizes are different for different cylinders. a modifier shoould be added to correct for this 
+        #cache for base sphere objects keyed by (color_tuple, radius)
+        sphere_base_cache = {}
 
+        for sphere in self.data.spheres:
+            rounded_color = tuple(round(c, 4) for c in sphere['color'])
+            cache_key = (rounded_color, sphere['radius'])
+
+            if cache_key not in sphere_base_cache:
+                #create base sphere at origin            
+                bpy.ops.mesh.primitive_uv_sphere_add(
+                    radius=sphere['radius'],
+                    location=(0, 0, 0)
+                )
+                base_obj = bpy.context.active_object
+                mat = self._get_or_create_material(sphere['color'], "Sphere")
+                base_obj.data.materials.append(mat)
+                sphere_base_cache[cache_key] = base_obj
+
+            #make instance
+            base_obj = sphere_base_cache[cache_key]
+            new_obj = base_obj.copy()
+            new_obj_data = base_obj.data
+            new_obj.location = sphere['center']
+            bpy.context.collection.objects.link(new_obj)
+
+    def _create_cylinders(self):
         # Cache for base cylinder objects keyed by (color_tuple, radius)
         cylinder_base_cache = {}
         
@@ -319,16 +331,17 @@ class BlenderCrystalBuilder:
             rounded_color = tuple(round(c, 4) for c in cyl['color'])
             cache_key = (rounded_color, cyl['radius'])
             
+            # Calculate the actual height needed for this specific cylinder
+            p1 = Vector(cyl['point1'])
+            p2 = Vector(cyl['point2'])
+            actual_height = (p2 - p1).length
+            
             # Check if we already have a base cylinder for this color+radius combination
             if cache_key not in cylinder_base_cache:
-                # Create the base cylinder mesh at origin (unit height, will scale)
-                p1 = Vector(cyl['point1'])
-                p2 = Vector(cyl['point2'])
-                height = (p2 - p1).length
-                
+                # Create the base cylinder mesh at origin with UNIT height (will scale per instance)
                 bpy.ops.mesh.primitive_cylinder_add(
                     radius=cyl['radius'],
-                    depth=height,
+                    depth=1.0,  # Unit height - will be scaled per instance
                     location=(0, 0, 0)  # Create at origin
                 )
                 base_obj = bpy.context.active_object
@@ -338,18 +351,12 @@ class BlenderCrystalBuilder:
                 base_obj.data.materials.append(mat)
                 
                 # Store in cache
-                cylinder_base_cache[cache_key] = {
-                    'object': base_obj,
-                    'height': height
-                }
+                cylinder_base_cache[cache_key] = base_obj
             
             # Create an instance of the base cylinder
-            base_info = cylinder_base_cache[cache_key]
-            base_obj = base_info['object']
+            base_obj = cylinder_base_cache[cache_key]
             
-            # Calculate position and rotation for this cylinder
-            p1 = Vector(cyl['point1'])
-            p2 = Vector(cyl['point2'])
+            # Calculate position for this cylinder
             mid = (p1 + p2) / 2
             
             # Create a linked duplicate (instance)
@@ -357,6 +364,9 @@ class BlenderCrystalBuilder:
             new_obj.data = base_obj.data  # Link to same mesh data
             new_obj.location = mid
             new_obj.rotation_euler = (p2 - p1).to_track_quat('-Z', 'Y').to_euler()
+            
+            # Scale Z to match the actual height (unit height * scale = actual height)
+            new_obj.scale[2] = actual_height
             
             # Link to scene
             bpy.context.collection.objects.link(new_obj)
@@ -392,6 +402,6 @@ def import_pov_to_blender(pov_file: str):
 
 
 if __name__ == "__main__":
-    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/Bi12345.pov"
+    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/BiI3.pov"
     import_pov_to_blender(pov_path)
     print('listoquiiito')
