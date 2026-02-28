@@ -11,7 +11,7 @@ class POVParser:
         self.polygons = []
         self.camera_data = {}
         self.colors = {}
-
+        self.polyhedra_edge_color = (0.75, 0.75, 0.75, 1)
         
     def parse(self):
         with open(self.pov_file, 'r') as f:
@@ -38,6 +38,13 @@ class POVParser:
             if look_at:
                 self.camera_data['look_at'] = self._parse_vector(look_at.group(1))
     
+    def _check_sphere_radius(self, radius: float,threshold = 0.2    ):
+        if radius < threshold:
+            return True
+        else:
+            return False
+
+        
     def _extract_spheres(self, content: str):
         # Match entire sphere definition on a line: sphere { ... } with optional comment
         sphere_pattern = r'sphere\s*\{(.*?)\}\s*(?://.*)?$'
@@ -48,7 +55,11 @@ class POVParser:
                 continue
             center = self._parse_vector(center_radius.group(1))
             radius = float(center_radius.group(2))
-            color = self._extract_material(sphere_block, object='sphere')
+            is_poly_edge = self._check_sphere_radius(radius)
+            if is_poly_edge:
+                color = self.polyhedra_edge_color
+            else:
+                color = self._extract_material(sphere_block, object='sphere')
             translate_match = re.search(r'translate\s*<([^>]+)>', sphere_block)
             if translate_match:
                 center = self._parse_vector(translate_match.group(1))
@@ -218,15 +229,14 @@ class POVParser:
                 return self.colors.get(color_match.group(1).replace('M', 'P')+'_1')
             elif object == 'bond_or_cell':
                 return self.colors.get(color_match.group(1))
-        if not color_match: #if the material is not in material_str:
-            return (0.75, 0.75, 0.75, 1)
-        
-            
-
+        if not color_match and object == 'poly_edge':
+            print('poly edge color is hard coded to 75\% grey')
+            return self.polyhedra_edge_color
+            #for th etime being, poly edges will be grey
         else:
             print('outside loop')
             return None
-                #From the time being, Poly edges will be gray
+                #From the time being, Poly edges will be grey
                 #finish in the future
 
 
@@ -291,9 +301,9 @@ class BlenderCrystalBuilder:
         return mat
     
     def build(self):
+        self._create_cylinders()
+        self._create_polygons()
         self._create_spheres()
-        #self._create_cylinders()
-        #self._create_polygons()
         #self._set_camera()
     
     def _create_spheres(self):
@@ -402,6 +412,6 @@ def import_pov_to_blender(pov_file: str):
 
 
 if __name__ == "__main__":
-    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/BiI3.pov"
+    pov_path = "D:/Python_Projects/Repositories/pov_to_blender/Bi12345.pov"
     import_pov_to_blender(pov_path)
     print('listoquiiito')
